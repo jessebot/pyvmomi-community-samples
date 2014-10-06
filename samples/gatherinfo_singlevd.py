@@ -4,6 +4,8 @@
 # Blog: http://www.errr-online.com/
 # This code has been released under the terms of the Apache 2 licenses
 # http://www.apache.org/licenses/LICENSE-2.0.html
+# modifications by jessebot: changed uuid finding to dns
+# added info gathered from vm, from another of errr's vminfo_quick.py
 
 __author__ = 'errr'
 
@@ -19,10 +21,9 @@ def setup_args():
     be set.
     """
     parser = cli.build_arg_parser()
-    # using j here because -u is used for user
-    parser.add_argument('-j', '--uuid',
+    parser.add_argument('-n', '--name',
                         required=True,
-                        help='UUID of the VirtualMachine you want to reboot.')
+                        help='DNS name of the VirtualMachine you want info on.')
     my_args = parser.parse_args()
     return cli.prompt_for_password(my_args)
 
@@ -39,16 +40,22 @@ except IOError, e:
 
 if not si:
     raise SystemExit("Unable to connect to host with supplied info.")
-vm = si.content.searchIndex.FindByUuid(None, args.uuid, True, True)
+vm = si.content.searchIndex.FindByDnsName(None, args.name, True)
 if not vm:
     raise SystemExit("Unable to locate VirtualMachine.")
 
-print "Found: {0}".format(vm.name)
-print "The current powerState is: {0}".format(vm.runtime.powerState)
-# This does not guarantee a reboot.
-# It issues a command to the guest
-# operating system asking it to perform a reboot.
-# Returns immediately and does not wait for the guest
-# operating system to complete the operation.
-vm.RebootGuest()
-print "A request to reboot the guest has been sent."
+summary = vm.summary
+print("Name       : ", summary.config.name)
+print("Path       : ", summary.config.vmPathName)
+print("Os      : ", summary.config.guestFullName)
+annotation = summary.config.annotation
+if annotation != None and annotation != "":
+    print("Annotation : ", annotation)
+    print("State      : ", summary.runtime.powerState)
+if summary.guest != None:
+    ip = summary.guest.ipAddress
+    if ip != None and ip != "":
+        print("IP         : ", ip)
+    if summary.runtime.question != None:
+        print("Question  : ", summary.runtime.question.text)
+    print("")
